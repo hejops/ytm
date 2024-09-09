@@ -33,11 +33,14 @@ func TestJSONResponse(t *testing.T) {
 	assert.Equal(
 		t,
 		(&Album{Id: "MPREb_BL9sWaZWAUE"}).getPlaylistId(),
-		"OLAK5uy_lvmV9P8LsaV83ALc6PrdRleHAtSwKzkHQ",
+		"OLAK5uy_lvmV9P8LsaV83ALc6PrdRleHAtSwKzkHQ", // pragma: allowlist secret
 	)
 	assert.Equal(
 		t,
 		(&Album{Id: "MPREb_6KTedIfvZMt"}).getPlaylistId(),
-		"OLAK5uy_nMLv2tlhhUVZHZQ5PQ7hzp1n9w-OqcQ44",
+		"OLAK5uy_nMLv2tlhhUVZHZQ5PQ7hzp1n9w-OqcQ44", // pragma: allowlist secret
 	)
+
+	b = searchCurlJq("hindemith lebhaft violin")
+	assert.Len(t, parseCurlJq(b)[19].Id, 11)
 }

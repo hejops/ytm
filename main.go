@@ -21,7 +21,7 @@ func main() {
 	lf, _ := tea.LogToFile("/tmp/ytm.log", "")
 	defer lf.Close()
 
-	_, err := tea.NewProgram(&Model{input: "death grips"}, tea.WithAltScreen()).Run()
+	_, err := tea.NewProgram(&Model{input: "hindemith violin lebhaft"}, tea.WithAltScreen()).Run()
 	if err != nil {
 		panic(err)
 	}

@@ -22,7 +22,7 @@ const JQ_SCRIPT = "./curl_jq.sh" // TODO: can we use go:embed or something?
 type YoutubeVideo struct {
 	Title    string
 	Id       string
-	Artist   Artist
+	Artists  []Artist
 	Album    Album
 	Duration string
 	Plays    string // human-formatted (e.g. 10K)
@@ -162,6 +162,8 @@ type Album struct {
 }
 
 func parseCurlJq(b []byte) (videos []YoutubeVideo) {
+	dot := " • "
+	_ = dot
 	d := json.NewDecoder(bytes.NewBuffer(b))
 	var v YoutubeVideo
 	for i := 0; ; i++ {
@@ -173,14 +175,22 @@ func parseCurlJq(b []byte) (videos []YoutubeVideo) {
 			panic(err)
 		}
 
-		// Generally, we expect 140 json lines, in the following order:
+		// log.Println(spew.Sdump(line))
+
+		// In the happy path, we expect 140 json lines, in the
+		// following order:
+		//
 		// 0. song
-		// 1. artist
+		// 1. artist[s]
 		// 2. dot
 		// 3. album
 		// 4. dot
 		// 5. duration
 		// 6. plays
+		//
+		// It is possible (and likely) for more than one artist to be
+		// returned, but this is easily mitigated by moving the counter
+		// back.
 
 		t := line.Text
 		switch i % 7 {
@@ -188,7 +198,10 @@ func parseCurlJq(b []byte) (videos []YoutubeVideo) {
 			v.Title = t
 			v.Id = line.NavigationEndpoint.WatchEndpoint.VideoId
 		case 1:
-			v.Artist = Artist{Name: t, Id: line.NavigationEndpoint.BrowseEndpoint.BrowseId}
+			v.Artists = append(
+				v.Artists,
+				Artist{Name: t, Id: line.NavigationEndpoint.BrowseEndpoint.BrowseId},
+			)
 		case 3:
 			v.Album = Album{Name: t, Id: line.NavigationEndpoint.BrowseEndpoint.BrowseId}
 		case 5:
@@ -201,10 +214,16 @@ func parseCurlJq(b []byte) (videos []YoutubeVideo) {
 			// }
 			v.Plays = strings.Fields(t)[0]
 			videos = append(videos, v)
+			// fmt.Println(v)
 			v = YoutubeVideo{}
 
-		case 2, 4:
-			continue
+		case 2:
+			if t != dot {
+				i--
+			}
+
+		case 4:
+
 		}
 
 	}

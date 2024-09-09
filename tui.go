@@ -39,7 +39,7 @@ func (v *YoutubeVideo) asRow() table.Row {
 	// TODO: use reflect to access v fields via VideoColumns?
 	return table.Row{
 		v.Title,
-		v.Artist.Name,
+		v.Artists[0].Name,
 		v.Album.Name,
 		v.Duration,
 		v.Plays,
@@ -293,7 +293,7 @@ func (m *Model) View() string {
 
 		panes = append(panes, strings.Join([]string{
 			v.Title,
-			v.Artist.Name,
+			v.Artists[0].Name,
 			v.Album.Name,
 			// "https://music.youtube.com/browse/" + v.Album.Id,
 			"https://music.youtube.com/playlist?list=" + v.Album.getPlaylistId(),
