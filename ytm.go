@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"net/http"
 	"os/exec"
 	"strings"
 )
@@ -21,35 +22,37 @@ const JQ_SCRIPT = "./curl_jq.sh" // TODO: can we use go:embed or something?
 type YoutubeVideo struct {
 	Title    string
 	Id       string
-	Artist   string
-	Album    string
+	Artist   Artist
+	Album    Album
 	Duration string
 	Plays    string // human-formatted (e.g. 10K)
 }
 
 type Run struct {
 	Text               string
-	NavigationEndpoint struct{ WatchEndpoint struct{ VideoId string } }
+	NavigationEndpoint struct {
+		WatchEndpoint  struct{ VideoId string }  // track
+		BrowseEndpoint struct{ BrowseId string } // artist / album
+	}
 }
 
 // {{{
 
-// var YT_PAYLOAD = map[string]any{
-// 	"context": map[string]any{
-// 		// https://github.com/zerodytrash/YouTube-Internal-Clients/blob/main/results/working_clients.txt
-// 		// may be brittle; what does yt-dlp use?
-// 		"client": map[string]string{
-// 			"clientName": "WEB_REMIX",
-// 			// "clientVersion": "1.20220715.04.00",
-// 			"clientVersion": "1.20240904.01.01",
-// 		},
-// 		// important to get more results
-// 		"params": "EgWKAQIIAWoSEAMQBBAJEA4QChAFEBEQEBAV",
-// 		"user": map[string]interface{}{
-// 			"lockedSafetyMode": false,
-// 		},
-// 	},
-// }
+var YT_PAYLOAD = map[string]any{
+	"context": map[string]any{
+		// https://github.com/zerodytrash/YouTube-Internal-Clients/blob/main/results/working_clients.txt
+		// may be brittle; what does yt-dlp use?
+		"client": map[string]string{
+			"clientName":    "WEB_REMIX",
+			"clientVersion": "1.20240904.01.01",
+		},
+		// // important to get more results
+		// "params": "EgWKAQIIAWoSEAMQBBAJEA4QChAFEBEQEBAV",
+		// "user": map[string]interface{}{
+		// 	"lockedSafetyMode": false,
+		// },
+	},
+}
 
 // type YoutubeSchema struct {
 // 	Contents struct {
@@ -148,6 +151,16 @@ func searchCurlJq(query string) []byte {
 	return b
 }
 
+type Artist struct {
+	Name string
+	Id   string
+}
+
+type Album struct {
+	Name string
+	Id   string
+}
+
 func parseCurlJq(b []byte) (videos []YoutubeVideo) {
 	d := json.NewDecoder(bytes.NewBuffer(b))
 	var v YoutubeVideo
@@ -175,9 +188,9 @@ func parseCurlJq(b []byte) (videos []YoutubeVideo) {
 			v.Title = t
 			v.Id = line.NavigationEndpoint.WatchEndpoint.VideoId
 		case 1:
-			v.Artist = t
+			v.Artist = Artist{Name: t, Id: line.NavigationEndpoint.BrowseEndpoint.BrowseId}
 		case 3:
-			v.Album = t
+			v.Album = Album{Name: t, Id: line.NavigationEndpoint.BrowseEndpoint.BrowseId}
 		case 5:
 			v.Duration = t
 		case 6:
@@ -197,4 +210,38 @@ func parseCurlJq(b []byte) (videos []YoutubeVideo) {
 	}
 
 	return videos
+}
+
+func (a *Album) getPlaylistId() string {
+	// curl -sL 'https://music.youtube.com/youtubei/v1/browse?prettyPrint=false' -X POST -H 'Content-Type: application/json' --data-raw '{"context":{"client":{"clientName":"WEB_REMIX","clientVersion":"1.20240904.01.01"}},"browseId":"MPREb_BL9sWaZWAUE"}' | jq .
+
+	if a.Id == "" {
+		panic(1)
+	}
+
+	YT_PAYLOAD["browseId"] = a.Id
+	b, err := json.Marshal(YT_PAYLOAD)
+	if err != nil {
+		panic(err)
+	}
+	req, err := http.NewRequest(
+		"POST",
+		"https://music.youtube.com/youtubei/v1/browse", // browse, not search!
+		bytes.NewBuffer(b),
+	)
+	if err != nil {
+		panic(err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	s := string(body)
+	i := strings.Index(s, "OLAK5uy")
+	return s[i : i+41]
 }

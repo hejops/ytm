@@ -15,7 +15,13 @@ func main() {
 		log.Fatalln("jq script not found:", JQ_SCRIPT)
 	}
 
-	_, err := tea.NewProgram(&Model{}, tea.WithAltScreen()).Run()
+	// parseCurlJq(searchCurlJq("duphly"))
+	// return
+
+	lf, _ := tea.LogToFile("/tmp/ytm.log", "")
+	defer lf.Close()
+
+	_, err := tea.NewProgram(&Model{input: "death grips"}, tea.WithAltScreen()).Run()
 	if err != nil {
 		panic(err)
 	}

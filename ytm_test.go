@@ -29,4 +29,15 @@ func TestJSONResponse(t *testing.T) {
 
 	b := searchCurlJq(query)
 	assert.Equal(t, strings.Count(string(b), "videoId"), len(parseCurlJq(b)))
+
+	assert.Equal(
+		t,
+		(&Album{Id: "MPREb_BL9sWaZWAUE"}).getPlaylistId(),
+		"OLAK5uy_lvmV9P8LsaV83ALc6PrdRleHAtSwKzkHQ",
+	)
+	assert.Equal(
+		t,
+		(&Album{Id: "MPREb_6KTedIfvZMt"}).getPlaylistId(),
+		"OLAK5uy_nMLv2tlhhUVZHZQ5PQ7hzp1n9w-OqcQ44",
+	)
 }
